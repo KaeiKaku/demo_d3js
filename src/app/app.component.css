@@ -1,0 +1,25 @@
+#main {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.container {
+  width: 1190px;
+  text-align: center;
+}
+
+h1 {
+  padding: 1rem;
+}
+
+a {
+  display: block;
+  padding: 0.5rem;
+}
+
+.container > section.link_set {
+  display: flex;
+  justify-content: center;
+}
