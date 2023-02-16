@@ -4,6 +4,7 @@ import * as d3 from 'd3';
 export interface DummyData {
   name: string;
   value: number;
+  value2: number;
   date: string;
 }
 type DummyDataType = keyof DummyData;
@@ -32,6 +33,7 @@ export class DataGeneratorService {
         result.push({
           name: eachName,
           value: d3.randomInt(1000000)(),
+          value2: d3.randomInt(1000000)(),
           date: d3.timeFormat('%Y-%m-%d')(this.addDays(startDate, i)),
         });
       }
