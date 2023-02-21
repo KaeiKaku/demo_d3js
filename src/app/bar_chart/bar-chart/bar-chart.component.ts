@@ -47,6 +47,7 @@ export class BarChartComponent implements OnInit {
   groupAxisXTextInner: d3Text;
   innerWidth: number;
   innerHeight: number;
+  zeroLineX: number;
   textGap: number = 10;
 
   scaleX: d3.ScaleBand<string>;
@@ -58,7 +59,8 @@ export class BarChartComponent implements OnInit {
     this.DataCY = this.dataGen.getData(this.DataAll, 'date', '2023-01-01');
     this.DataAofCY = this.dataGen.getData(this.DataAll, 'name', 'A');
     this.innerWidth = this.dataGen.WIDTH - this.dataGen.INNER_MARGIN * 2;
-    this.innerHeight = this.dataGen.HEIGHT - this.dataGen.INNER_MARGIN * 2;
+    this.innerHeight = this.dataGen.HEIGHT / 2 - this.dataGen.INNER_MARGIN;
+    this.zeroLineX = this.dataGen.HEIGHT / 2;
 
     // generate scale method
     this.scaleX = d3
@@ -68,8 +70,11 @@ export class BarChartComponent implements OnInit {
       .padding(0.1);
     this.scaleY = d3
       .scaleLinear()
-      .domain([0, d3.max(this.DataCY.map((d) => d.value)) as number])
-      .range([this.innerHeight, 0])
+      .domain([
+        0 - (d3.max(this.DataCY.map((d) => d.value)) as number),
+        d3.max(this.DataCY.map((d) => d.value)) as number,
+      ])
+      .range([this.innerHeight * 2, 0])
       .clamp(true)
       .nice();
     this.colorScale = d3
@@ -121,7 +126,7 @@ export class BarChartComponent implements OnInit {
         'x',
         (d) => (this.scaleX(d.name) as number) + this.dataGen.INNER_MARGIN
       )
-      .attr('y', (d) => this.dataGen.HEIGHT - this.dataGen.INNER_MARGIN)
+      .attr('y', (d) => this.zeroLineX)
       .attr('width', this.scaleX.bandwidth());
 
     this.rectInner = svg
@@ -135,7 +140,7 @@ export class BarChartComponent implements OnInit {
           this.scaleX.bandwidth() / 4 +
           this.dataGen.INNER_MARGIN
       )
-      .attr('y', (d) => this.dataGen.HEIGHT - this.dataGen.INNER_MARGIN)
+      .attr('y', (d) => this.zeroLineX)
       .attr('width', this.scaleX.bandwidth() / 2);
 
     // draw text on axisX
@@ -143,9 +148,7 @@ export class BarChartComponent implements OnInit {
       .append('g')
       .attr(
         'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${
-          this.dataGen.HEIGHT - this.dataGen.INNER_MARGIN
-        })`
+        `translate(${this.dataGen.INNER_MARGIN},${this.zeroLineX})`
       )
       .call(axisXText)
       .selectAll('text')
@@ -158,9 +161,7 @@ export class BarChartComponent implements OnInit {
       .append('g')
       .attr(
         'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${
-          this.dataGen.HEIGHT - this.dataGen.INNER_MARGIN
-        })`
+        `translate(${this.dataGen.INNER_MARGIN},${this.zeroLineX})`
       )
       .call(axisXText)
       .selectAll('text')
@@ -174,9 +175,7 @@ export class BarChartComponent implements OnInit {
       .append('g')
       .attr(
         'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${
-          this.dataGen.HEIGHT - this.dataGen.INNER_MARGIN
-        })`
+        `translate(${this.dataGen.INNER_MARGIN},${this.zeroLineX})`
       )
       .call(axisX);
     svg
@@ -197,6 +196,12 @@ export class BarChartComponent implements OnInit {
         d.value = d3.randomInt(1000000)();
         d.value2 = d3.randomInt(1000000)();
       });
+      // temp data operation
+      for (let i in this.DataCY) {
+        if (this.DataCY[i].value2 > this.DataCY[i].value) {
+          this.DataCY[i].value2 = 0 - this.DataCY[i].value2;
+        }
+      }
       await this.renderTransition().finally(
         () => (this.onStoppingLoop = false)
       );
@@ -208,6 +213,12 @@ export class BarChartComponent implements OnInit {
           d.value = d3.randomInt(1000000)();
           d.value2 = d3.randomInt(1000000)();
         });
+        // temp data operation
+        for (let i in this.DataCY) {
+          if (this.DataCY[i].value2 > this.DataCY[i].value) {
+            this.DataCY[i].value2 = 0 - this.DataCY[i].value2;
+          }
+        }
         await this.renderTransition().finally(
           () => (this.onStoppingLoop = false)
         );
@@ -228,8 +239,18 @@ export class BarChartComponent implements OnInit {
 
     this.rectInner
       .transition(transition)
-      .attr('y', (d) => this.scaleY(d.value2) + this.dataGen.INNER_MARGIN)
-      .attr('height', (d) => this.innerHeight - this.scaleY(d.value2))
+      .attr('y', (d) => {
+        if (d.value2 < 0) {
+          return this.zeroLineX;
+        }
+        return this.scaleY(d.value2) + this.dataGen.INNER_MARGIN;
+      })
+      .attr('height', (d) => {
+        if (d.value2 < 0) {
+          return this.scaleY(d.value2) - this.innerHeight;
+        }
+        return this.innerHeight - this.scaleY(d.value2);
+      })
       .attr('fill', (d) => 'black')
       .attr('opacity', 0.6);
 
@@ -246,10 +267,18 @@ export class BarChartComponent implements OnInit {
 
     this.groupAxisXTextInner
       .transition(transition)
-      .attr('y', (d) => this.scaleY(d.value2) - this.innerHeight - this.textGap)
+      .attr('y', (d) => {
+        if (d.value2 < 0) {
+          return this.scaleY(d.value2) - this.innerHeight + this.textGap / 2;
+        }
+        return this.scaleY(d.value2) - this.innerHeight - this.textGap;
+      })
       .tween('text', function (d) {
         let objThis = this as any;
-        var i = d3.interpolate(objThis.textContent, d.value2);
+        if (isNaN(objThis.textContent)) {
+          objThis.textContent = Number(objThis.textContent.replace('−', '-'));
+        }
+        var i = d3.interpolateNumber(objThis.textContent, d.value2);
         return function (t) {
           d3.select(this).text((d) => d3.format('.0f')(i(t)));
         };
