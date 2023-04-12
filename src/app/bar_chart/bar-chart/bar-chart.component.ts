@@ -7,23 +7,9 @@ import {
 
 enum ButtonEvent {
   Roll = 'Roll',
-  Loop = 'Loop',
   Direction = 'Direction',
+  Multi = 'Multi',
 }
-
-type d3Rect = d3.Selection<
-  d3.BaseType | SVGRectElement,
-  DummyData,
-  SVGSVGElement,
-  unknown
->;
-
-type d3Text = d3.Selection<
-  d3.BaseType | SVGTextElement,
-  DummyData,
-  SVGGElement,
-  unknown
->;
 
 @Component({
   selector: 'app-bar-chart',
@@ -31,258 +17,360 @@ type d3Text = d3.Selection<
   styleUrls: ['./bar-chart.component.css'],
 })
 export class BarChartComponent implements OnInit {
-  // triger
-  onloop: boolean = false;
-  onStoppingLoop: boolean = false;
-
   // data
   DataAll: DummyData[];
-  DataCY: DummyData[] = [];
-  DataAofCY: DummyData[] = [];
 
-  // svg element
-  rect: d3Rect;
-  rectInner: d3Rect;
-  groupAxisXText: d3Text;
-  groupAxisXTextInner: d3Text;
-  innerWidth: number;
-  innerHeight: number;
-  zeroLineX: number;
-  textGap: number = 10;
-
-  scaleX: d3.ScaleBand<string>;
-  scaleY: d3.ScaleLinear<number, number, never>;
-  colorScale: d3.ScaleOrdinal<string, unknown, never>;
+  // toolTip
+  cuzToolTip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>;
 
   constructor(private dataGen: DataGeneratorService) {
     this.DataAll = this.dataGen.generateDummyData();
-    this.DataCY = this.dataGen.getData(this.DataAll, 'date', '2023-01-01');
-    this.DataAofCY = this.dataGen.getData(this.DataAll, 'name', 'A');
-    this.innerWidth = this.dataGen.WIDTH - this.dataGen.INNER_MARGIN * 2;
-    this.innerHeight = this.dataGen.HEIGHT / 2 - this.dataGen.INNER_MARGIN;
-    this.zeroLineX = this.dataGen.HEIGHT / 2;
-
-    // generate scale method
-    this.scaleX = d3
-      .scaleBand()
-      .domain(this.DataCY.map((d) => d.name))
-      .range([0, this.innerWidth])
-      .padding(0.1);
-    this.scaleY = d3
-      .scaleLinear()
-      .domain([
-        0 - (d3.max(this.DataCY.map((d) => d.value)) as number),
-        d3.max(this.DataCY.map((d) => d.value)) as number,
-      ])
-      .range([this.innerHeight * 2, 0])
-      .clamp(true)
-      .nice();
-    this.colorScale = d3
-      .scaleOrdinal()
-      .domain(this.DataCY.map((d) => d.name))
-      .range(this.dataGen.COLORSET);
   }
 
   ngOnInit(): void {
     // add button
     d3.select('#bar_chart_container')
       .append('button')
-      .text('Roll')
+      .text('Multi')
       .attr(
         'style',
         'padding: 0.5rem 1rem; margin: 1rem; font-size:1rem;cursor:pointer'
       )
-      .on('click', () => this.btnOnclick(ButtonEvent.Roll));
+      .on('click', () => this.btnOnclick(ButtonEvent.Multi));
 
-    d3.select('#bar_chart_container')
-      .append('button')
-      .text('Loop')
-      .attr(
-        'style',
-        'padding: 0.5rem 1rem; margin: 1rem; font-size:1rem;cursor:pointer'
-      )
-      .on('click', () => this.btnOnclick(ButtonEvent.Loop));
-
-    // add main svg
-    const svg = d3
-      .select('#bar_chart_container')
-      .append('svg')
-      .attr('width', this.dataGen.WIDTH)
-      .attr('height', this.dataGen.HEIGHT)
-      .classed('border', true);
-
-    // generate axis method
-    const axisX = d3.axisBottom(this.scaleX);
-    const axisXText = d3.axisBottom(this.scaleX);
-    const axisY = d3.axisLeft(this.scaleY).ticks(20);
-    // .tickSize(-this.dataGen.WIDTH + this.dataGen.INNER_MARGIN * 2);
-
-    // draw rect
-    this.rect = svg
-      .selectAll('rect')
-      .data(this.DataCY)
-      .join('rect')
-      .attr(
-        'x',
-        (d) => (this.scaleX(d.name) as number) + this.dataGen.INNER_MARGIN
-      )
-      .attr('y', (d) => this.zeroLineX)
-      .attr('width', this.scaleX.bandwidth());
-
-    this.rectInner = svg
-      .selectAll('.rectInner')
-      .data(this.DataCY)
-      .join('rect')
-      .attr(
-        'x',
-        (d) =>
-          (this.scaleX(d.name) as number) +
-          this.scaleX.bandwidth() / 4 +
-          this.dataGen.INNER_MARGIN
-      )
-      .attr('y', (d) => this.zeroLineX)
-      .attr('width', this.scaleX.bandwidth() / 2);
-
-    // draw text on axisX
-    this.groupAxisXText = svg
-      .append('g')
-      .attr(
-        'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${this.zeroLineX})`
-      )
-      .call(axisXText)
-      .selectAll('text')
-      .data(this.DataCY)
-      .join('text')
-      .text((d) => 0)
-      .attr('y', (d) => -this.textGap);
-
-    this.groupAxisXTextInner = svg
-      .append('g')
-      .attr(
-        'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${this.zeroLineX})`
-      )
-      .call(axisXText)
-      .selectAll('text')
-      .data(this.DataCY)
-      .join('text')
-      .text((d) => 0)
-      .attr('y', (d) => -this.textGap);
-
-    // draw axis
-    svg
-      .append('g')
-      .attr(
-        'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${this.zeroLineX})`
-      )
-      .call(axisX);
-    svg
-      .append('g')
-      .attr(
-        'transform',
-        `translate(${this.dataGen.INNER_MARGIN},${this.dataGen.INNER_MARGIN})`
-      )
-      .call(axisY);
+    // tooltip
+    this.cuzToolTip = d3
+      .select('body')
+      .append('div')
+      .style('top', 0)
+      .style('left', 0)
+      .style('border-radius', '0.5rem')
+      .style('position', 'absolute')
+      .style('display', 'flex')
+      .style('justify-content', 'center')
+      .style('align-items', 'center')
+      .style('padding', '1rem')
+      .style('width', '8rem')
+      .style('height', 'auto')
+      .style('background', 'black')
+      .style('opacity', 0)
+      .style('z-index', 10);
+    const innerTable = this.cuzToolTip
+      .append('table')
+      .style('width', '100%')
+      .style('border-spacing', '8px')
+      .style('color', 'white')
+      .style('font-size', '12px');
+    const tr = innerTable.append('tr');
+    tr.append('td')
+      .style('width', '50%')
+      .style('text-align', 'right')
+      .style('white-space', 'normal')
+      .style('word-break', 'break-all')
+      .text('label');
+    tr.append('td')
+      .style('width', '50%')
+      .style('text-align', 'left')
+      .style('white-space', 'normal')
+      .style('word-break', 'break-all')
+      .text('value');
   }
 
-  async btnOnclick(e: ButtonEvent): Promise<void> {
-    // this.onloop = false;
-    if (e === ButtonEvent.Roll && !this.onloop && !this.onStoppingLoop) {
-      this.onStoppingLoop = true;
-      // random dummy data
-      this.DataCY.forEach((d) => {
-        d.value = d3.randomInt(1000000)();
-        d.value2 = d3.randomInt(1000000)();
+  btnOnclick(e: ButtonEvent): void {
+    const datum1 = this.dataGen.getData(this.DataAll, 'date', '2023-01-01');
+    const datum2 = this.dataGen.getData(this.DataAll, 'date', '2023-01-02');
+    const datum3 = this.dataGen.getData(this.DataAll, 'date', '2023-01-03');
+    const datum4 = this.dataGen.getData(this.DataAll, 'date', '2023-01-04');
+    const datum5 = this.dataGen.getData(this.DataAll, 'date', '2023-01-05');
+
+    const testDataArray = [datum1, datum2, datum3, datum4, datum5];
+
+    const container = document.getElementById('svg_multi_container');
+    const svgWith = container ? container.offsetWidth / 2 : 0;
+
+    if (e === ButtonEvent.Multi) {
+      d3.selectAll('.innerContainer').remove();
+      testDataArray.map((data) => {
+        this.generateSVG(data, svgWith, 400, 30, 10);
       });
-      // temp data operation
-      for (let i in this.DataCY) {
-        if (this.DataCY[i].value2 > this.DataCY[i].value) {
-          this.DataCY[i].value2 = 0 - this.DataCY[i].value2;
-        }
-      }
-      await this.renderTransition().finally(
-        () => (this.onStoppingLoop = false)
-      );
-    } else if (e === ButtonEvent.Loop) {
-      this.onloop = this.onloop ? false : true;
-      if (!this.onloop) this.onStoppingLoop = true;
-      while (this.onloop) {
-        this.DataCY.forEach((d) => {
-          d.value = d3.randomInt(1000000)();
-          d.value2 = d3.randomInt(1000000)();
-        });
-        // temp data operation
-        for (let i in this.DataCY) {
-          if (this.DataCY[i].value2 > this.DataCY[i].value) {
-            this.DataCY[i].value2 = 0 - this.DataCY[i].value2;
-          }
-        }
-        await this.renderTransition().finally(
-          () => (this.onStoppingLoop = false)
-        );
-      }
     } else {
       return;
     }
   }
 
-  async renderTransition(): Promise<void> {
-    const transition = d3.transition().ease(d3.easeCubic).duration(2000);
+  async generateSVG(
+    datum: DummyData[],
+    svgWidth: number,
+    svgHeight: number,
+    svgInnerMargin: number,
+    svgTextGap: number,
+    isTransition: boolean = true
+  ): Promise<void> {
+    if (datum.length == 0 || !datum) {
+      return;
+    }
 
-    this.rect
-      .transition(transition)
-      .attr('y', (d) => this.scaleY(d.value) + this.dataGen.INNER_MARGIN)
-      .attr('height', (d) => this.innerHeight - this.scaleY(d.value))
-      .attr('fill', (d) => this.colorScale(d.name) as string);
+    // Data
+    for (let i in datum) {
+      if (datum[i].value2 > datum[i].value) {
+        datum[i].value2 = 0 - datum[i].value2;
+      }
+    }
 
-    this.rectInner
-      .transition(transition)
-      .attr('y', (d) => {
-        if (d.value2 < 0) {
-          return this.zeroLineX;
-        }
-        return this.scaleY(d.value2) + this.dataGen.INNER_MARGIN;
+    const innerWidth = svgWidth - svgInnerMargin * 2;
+    const innerHeight = svgHeight / 2 - svgInnerMargin;
+    const zeroLineX = svgHeight / 2;
+    const transition = d3.transition().ease(d3.easeCubic).duration(1000);
+
+    // generate scale method
+    const scaleX = d3
+      .scaleBand()
+      .domain(datum.map((d) => d.name))
+      .range([0, innerWidth])
+      .padding(0.1);
+    const scaleY = d3
+      .scaleLinear()
+      .domain([
+        0 - (d3.max(datum.map((d) => d.value)) as number),
+        d3.max(datum.map((d) => d.value)) as number,
+      ])
+      .range([innerHeight * 2, 0])
+      .clamp(true)
+      .nice();
+    const colorScale = d3
+      .scaleOrdinal()
+      .domain(datum.map((d) => d.name))
+      .range(this.dataGen.COLORSET);
+
+    // create svg
+    const innerContainer = d3
+      .select('#svg_multi_container')
+      .append('div')
+      .attr('id', 'innerContainer')
+      .style('display', 'inline-block')
+      // .style('overflow-x', 'overlay')
+      // .style('overflow-y', 'overlay')
+      .style('position', 'relative');
+
+    const svg = innerContainer
+      .append('svg')
+      .attr('width', svgWidth)
+      .attr('height', svgHeight)
+      .classed('innerContainer', true);
+
+    // generate axis method
+    const axisX = d3.axisBottom(scaleX);
+    const axisXText = d3.axisBottom(scaleX);
+    const axisY = d3.axisLeft(scaleY).ticks(10);
+    // .tickSize(-this.dataGen.WIDTH + this.dataGen.INNER_MARGIN * 2);
+
+    // draw rect
+    const rect = svg
+      .selectAll('rect')
+      .data(datum)
+      .join('rect')
+      .attr('x', (d) => (scaleX(d.name) as number) + svgInnerMargin)
+      .attr('y', (d) => zeroLineX)
+      .attr('width', scaleX.bandwidth())
+      .on('mouseover', (e) => {
+        d3.select(e.target).attr('opacity', 0.6).attr('cursor', 'pointer');
       })
-      .attr('height', (d) => {
-        if (d.value2 < 0) {
-          return this.scaleY(d.value2) - this.innerHeight;
-        }
-        return this.innerHeight - this.scaleY(d.value2);
-      })
-      .attr('fill', (d) => 'black')
-      .attr('opacity', 0.6);
+      .on('mousemove', (e) => {
+        // tooltip calculate
+        const toolTipRect = this.cuzToolTip.node()?.getBoundingClientRect();
+        const width = toolTipRect?.width as number;
+        const height = toolTipRect?.height as number;
+        const offsetX = 20;
+        const offsetY = -height / 2;
 
-    this.groupAxisXText
-      .transition(transition)
-      .attr('y', (d) => this.scaleY(d.value) - this.innerHeight - this.textGap)
-      .tween('text', function (d) {
-        let objThis = this as any;
-        var i = d3.interpolate(objThis.textContent, d.value);
-        return function (t) {
-          d3.select(this).text((d) => d3.format('.0f')(i(t)));
-        };
+        const toopTipLocation = this.tooltipLocate(
+          e,
+          width,
+          height,
+          offsetX,
+          offsetY
+        );
+
+        // tooltip location
+        this.cuzToolTip
+          .style('z-index', 10)
+          .style('opacity', 0.8)
+          .style('left', `${toopTipLocation[0]}px`)
+          .style('top', `${toopTipLocation[1]}px`);
+      })
+      .on('mouseleave', (e) => {
+        d3.select(e.target).attr('opacity', 1);
+        this.cuzToolTip.style('opacity', 0).style('z-index', -10);
       });
 
-    this.groupAxisXTextInner
-      .transition(transition)
-      .attr('y', (d) => {
-        if (d.value2 < 0) {
-          return this.scaleY(d.value2) - this.innerHeight + this.textGap / 2;
-        }
-        return this.scaleY(d.value2) - this.innerHeight - this.textGap;
+    const rectInner = svg
+      .selectAll('.rectInner')
+      .data(datum)
+      .join('rect')
+      .attr(
+        'x',
+        (d) =>
+          (scaleX(d.name) as number) + scaleX.bandwidth() / 4 + svgInnerMargin
+      )
+      .attr('y', (d) => zeroLineX)
+      .attr('width', scaleX.bandwidth() / 2)
+      .on('mouseover', (e) => {
+        d3.select(e.target).attr('opacity', 1).attr('cursor', 'pointer');
       })
-      .tween('text', function (d) {
-        let objThis = this as any;
-        if (isNaN(objThis.textContent)) {
-          objThis.textContent = Number(objThis.textContent.replace('−', '-'));
-        }
-        var i = d3.interpolateNumber(objThis.textContent, d.value2);
-        return function (t) {
-          d3.select(this).text((d) => d3.format('.0f')(i(t)));
-        };
+      .on('mouseleave', (e) => {
+        d3.select(e.target).attr('opacity', 0.6);
       });
-    await transition.end();
+
+    // draw text on axisX
+    const groupAxisXText = svg
+      .append('g')
+      .attr('transform', `translate(${svgInnerMargin},${zeroLineX})`)
+      .call(axisXText)
+      .selectAll('text')
+      .data(datum)
+      .join('text')
+      .text((d) => 0)
+      .attr('y', (d) => -svgTextGap);
+
+    const groupAxisXTextInner = svg
+      .append('g')
+      .attr('transform', `translate(${svgInnerMargin},${zeroLineX})`)
+      .call(axisXText)
+      .selectAll('text')
+      .data(datum)
+      .join('text')
+      .text((d) => 0)
+      .attr('y', (d) => -svgTextGap);
+
+    // draw axis
+    svg
+      .append('g')
+      .attr('transform', `translate(${svgInnerMargin},${zeroLineX})`)
+      .call(axisX);
+    svg
+      .append('g')
+      .attr('transform', `translate(${svgInnerMargin},${svgInnerMargin})`)
+      .call(axisY);
+
+    /////////////////////////////
+    // rect draw
+    /////////////////////////////
+    if (isTransition) {
+      rect
+        .transition(transition)
+        .attr('y', (d) => scaleY(d.value) + svgInnerMargin)
+        .attr('height', (d) => innerHeight - scaleY(d.value))
+        .attr('fill', (d) => colorScale(d.name) as string);
+
+      rectInner
+        .transition(transition)
+        .attr('y', (d) => {
+          if (d.value2 < 0) {
+            return zeroLineX;
+          }
+          return scaleY(d.value2) + svgInnerMargin;
+        })
+        .attr('height', (d) => {
+          if (d.value2 < 0) {
+            return scaleY(d.value2) - innerHeight;
+          }
+          return innerHeight - scaleY(d.value2);
+        })
+        .attr('fill', (d) => 'black')
+        .attr('opacity', 0.6);
+
+      groupAxisXText
+        .transition(transition)
+        .attr('y', (d) => scaleY(d.value) - innerHeight - svgTextGap)
+        .tween('text', function (d) {
+          let objThis = this as any;
+          var i = d3.interpolate(objThis.textContent, d.value);
+          return function (t) {
+            d3.select(this).text((d) => d3.format('.0f')(i(t)));
+          };
+        });
+
+      groupAxisXTextInner
+        .transition(transition)
+        .attr('y', (d) => {
+          if (d.value2 < 0) {
+            return scaleY(d.value2) - innerHeight + svgTextGap / 2;
+          }
+          return scaleY(d.value2) - innerHeight - svgTextGap;
+        })
+        .tween('text', function (d) {
+          let objThis = this as any;
+          if (isNaN(objThis.textContent)) {
+            objThis.textContent = Number(objThis.textContent.replace('−', '-'));
+          }
+          var i = d3.interpolateNumber(objThis.textContent, d.value2);
+          return function (t) {
+            d3.select(this).text((d) => d3.format('.0f')(i(t)));
+          };
+        });
+      ///////////////////////////////////
+      // no transition animate
+      ///////////////////////////////////
+    } else if (!isTransition) {
+      rect
+        .attr('y', (d) => scaleY(d.value) + svgInnerMargin)
+        .attr('height', (d) => innerHeight - scaleY(d.value))
+        .attr('fill', (d) => colorScale(d.name) as string);
+
+      rectInner
+        .attr('y', (d) => {
+          if (d.value2 < 0) {
+            return zeroLineX;
+          }
+          return scaleY(d.value2) + svgInnerMargin;
+        })
+        .attr('height', (d) => {
+          if (d.value2 < 0) {
+            return scaleY(d.value2) - innerHeight;
+          }
+          return innerHeight - scaleY(d.value2);
+        })
+        .attr('fill', (d) => 'black')
+        .attr('opacity', 0.6);
+
+      groupAxisXText
+        .attr('y', (d) => scaleY(d.value) - innerHeight - svgTextGap)
+        .text((d) => d.value);
+
+      groupAxisXTextInner
+        .attr('y', (d) => {
+          if (d.value2 < 0) {
+            return scaleY(d.value2) - innerHeight + svgTextGap / 2;
+          }
+          return scaleY(d.value2) - innerHeight - svgTextGap;
+        })
+        .text((d) => d.value);
+    }
+  }
+
+  tooltipLocate(
+    e: MouseEvent,
+    width: number,
+    height: number,
+    offsetX: number,
+    offsetY: number
+  ): number[] {
+    const MARGIN = 16;
+
+    let outputX = 0;
+    let outputY = 0;
+
+    outputX =
+      e.clientX + width + offsetX > window.innerWidth - MARGIN
+        ? e.pageX - width - offsetX
+        : e.pageX + offsetX;
+    outputY =
+      e.clientY + height + offsetY > window.innerHeight - MARGIN
+        ? e.pageY - height
+        : e.clientY - height - offsetY < 0
+        ? e.pageY
+        : e.pageY + offsetY;
+
+    return [outputX, outputY];
   }
 }

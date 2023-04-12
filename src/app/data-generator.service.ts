@@ -13,9 +13,6 @@ type DummyDataType = keyof DummyData;
   providedIn: 'root',
 })
 export class DataGeneratorService {
-  WIDTH = 1200;
-  HEIGHT = 700;
-  INNER_MARGIN = 60;
   COLORSET = d3.schemeSet1.concat(d3.schemeSet2).concat(d3.schemeSet3);
 
   constructor() {}
